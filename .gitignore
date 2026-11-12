@@ -1,0 +1,21 @@
+# Bảo mật - Không đẩy API Key lên
+.env
+.env.local
+
+# Môi trường Python
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Dữ liệu (nếu bạn không muốn đẩy file test lên)
+data/input/*
+data/output/*
+!data/input/.gitkeep
+!data/output/.gitkeep
+
+# Cấu hình IDE
+.vscode/
+.idea/
+.DS_Store
