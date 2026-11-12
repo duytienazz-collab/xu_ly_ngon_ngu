@@ -10,7 +10,7 @@ Hệ thống tự động chuyển đổi tài liệu tiếng Việt (PDF, DOCX,
 
 **Bước 1: Tạo và kích hoạt môi trường ảo**
 ```bash
-cd .\text-to-mcq\
+
 python -m venv .venv
 # Windows:
 .venv\Scripts\activate
