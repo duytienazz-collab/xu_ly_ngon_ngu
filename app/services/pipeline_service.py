@@ -74,9 +74,10 @@ def run_pipeline(
         accepted = rejected = 0
         for mcq in result.parsed.questions:
             ok, reason = validate_mcq(
-                mcq, chunk["sentences"], 
+                mcq, 
+                chunk["sentences"], 
                 strict=strict_validation,
-                semantic_verifier=semantic_verifier
+                semantic_verifier=semantic_verifier  # Sẽ tự động gọi nli_semantic_verifier nếu strict=True
             )
             if ok:
                 raw_questions.append({

@@ -3,6 +3,7 @@
 .env.local
 
 # Môi trường Python
+.venv/
 venv/
 env/
 __pycache__/

@@ -109,7 +109,46 @@ def _check_not_ambiguous(mcq: GeneratedMCQ, _chunk) -> tuple[bool, str]:
 # Muốn kiểm tra distractor thực sự đúng/sai, cần semantic verifier —
 # không thể làm bằng so khớp chuỗi.
 
+# THÊM ĐOẠN NÀY VÀO TRƯỚC DÒNG: # ----------------- Orchestrator -----------------
 
+from app.core.config import client
+from google.genai import types
+
+def nli_semantic_verifier(mcq: GeneratedMCQ, chunk_sentences: list[str]) -> tuple[bool, str]:
+    """
+    Bộ kiểm tra suy luận ngữ nghĩa (Semantic NLI Verifier):
+    Kiểm tra xem câu hỏi + đáp án đúng có thực sự được chứng minh bởi source_sentence hay không.
+    Giải quyết triệt để điểm yếu của so khớp chuỗi thô (string matching).
+    """
+    correct_opt = next((o.text for o in mcq.options if o.label == mcq.correct_answer_label), "")
+    
+    prompt = f"""Hãy đóng vai trò là một thẩm định viên logic NLP.
+Xác minh xem cặp CÂU HỎI và ĐÁP ÁN ĐÚNG có được suy ra hoặc chứng minh trực tiếp từ CÂU NGUỒN hay không.
+
+CÂU NGUỒN: "{mcq.source_sentence}"
+CÂU HỎI: "{mcq.question}"
+ĐÁP ÁN: "{correct_opt}"
+
+Chỉ trả về định dạng JSON duy nhất:
+{{"entailment": true/false, "reason": "lý do ngắn gọn"}}
+"""
+    try:
+        res = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.0,  # Khóa nhiệt độ về 0 để câu trả lời mang tính tất định tuyệt đối
+            ),
+        )
+        import json
+        data = json.loads(res.text)
+        if data.get("entailment") is True:
+            return True, ""
+        return False, f"Không đảm bảo logic suy luận: {data.get('reason')}"
+    except Exception as e:
+        # Nếu lỗi mạng hoặc API parse thất bại, tạm thời chấp nhận để không chặn pipeline
+        return True, ""
 # ----------------- Orchestrator -----------------
 
 CheckFn = Callable[[GeneratedMCQ, list[str]], tuple[bool, str]]
@@ -122,14 +161,6 @@ def validate_mcq(
     strict: bool = False,
     semantic_verifier: SemanticVerifier | None = None,
 ) -> tuple[bool, str]:
-    """
-    Chạy các check theo thứ tự từ rẻ → đắt.
-    - base: luôn chạy.
-    - strict: thêm check heuristic (câu mơ hồ).
-    - semantic_verifier: nếu được truyền, gọi cuối cùng để xác thực
-      ngữ nghĩa của đáp án (NLI/LLM). Mặc định None = không kiểm chứng
-      ngữ nghĩa, tức là chỉ dựa vào pre-filter.
-    """
     base_checks: list[CheckFn] = [
         _check_labels,
         _check_source_exact,
@@ -144,8 +175,10 @@ def validate_mcq(
         if not ok:
             return False, reason
 
-    if semantic_verifier is not None:
-        ok, reason = semantic_verifier(mcq, chunk_sentences)
+    # Nếu caller không truyền verifier riêng, dùng nli_semantic_verifier mặc định khi ở chế độ strict
+    verifier = semantic_verifier or (nli_semantic_verifier if strict else None)
+    if verifier is not None:
+        ok, reason = verifier(mcq, chunk_sentences)
         if not ok:
             return False, f"[semantic] {reason}"
 

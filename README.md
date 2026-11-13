@@ -23,3 +23,4 @@ GEMINI_API_KEY=điền_api_key_của_bạn_vào_đây
 GEMINI_MODEL=gemini-2.5-flash
 
 Dùng giao diện Web (Khuyên dùng)   streamlit run streamlit_app.py -->
+python run.py --input data/input/tai_lieu_mau.txt
